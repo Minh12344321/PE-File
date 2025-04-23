@@ -7,29 +7,49 @@ class PEViewerApp:
         self.root = root
         self.root.title("PE Viewer")
 
-        # Tạo khung
-        frame = ttk.Frame(root)
+        # ===== Frame tổng =====
+        frame = ttk.Frame(root, padding=10)
         frame.pack(fill=tk.BOTH, expand=True)
 
-        # TreeView bên trái
-        self.tree = ttk.Treeview(frame)
-        self.tree.heading("#0", text="Structure")
-        self.tree.pack(side=tk.LEFT, fill=tk.Y)
+        # ===== Frame chứa TreeView bên trái =====
+        left_frame = ttk.Frame(frame)
+        left_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 5))
 
-        # ListView bên phải
-        self.list = ttk.Treeview(frame, columns=("Address", "Value", "Meaning"), show="headings")
-        self.list.heading("Address", text="Address")
-        self.list.heading("Value", text="Value")
-        self.list.heading("Meaning", text="Meaning")
-        self.list.column("Address", width=100)
-        self.list.column("Value", width=100)
-        self.list.column("Meaning", width=400)
-        self.list.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        # ===== TreeView (Structure) =====
+        self.tree = ttk.Treeview(left_frame)
+        self.tree.heading("#0", text="Structure", anchor="w")
+        self.tree.pack(fill=tk.Y, expand=True)
 
-        # Menu
+        # Thanh cuộn cho TreeView
+        tree_scrollbar = ttk.Scrollbar(left_frame, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=tree_scrollbar.set)
+        tree_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # ===== Frame chứa ListView bên phải =====
+        right_frame = ttk.Frame(frame)
+        right_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        # ===== ListView (Details) =====
+        self.list = ttk.Treeview(
+            right_frame, 
+            columns=("Index", "Address", "Value", "Meaning"), 
+            show="headings",
+            selectmode="browse"
+        )
+        self.list.heading("Index", text="#")
+        self.list.column("Index", width=50, anchor="center")
+        self.list.pack(fill=tk.BOTH, expand=True)
+
+        # Thanh cuộn cho ListView
+        list_scrollbar = ttk.Scrollbar(right_frame, orient="vertical", command=self.list.yview)
+        self.list.configure(yscrollcommand=list_scrollbar.set)
+        list_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # ===== Menu =====
         menubar = tk.Menu(root)
         filemenu = tk.Menu(menubar, tearoff=0)
         filemenu.add_command(label="Open", command=self.open_file)
+        filemenu.add_separator()
         filemenu.add_command(label="Exit", command=root.quit)
         menubar.add_cascade(label="File", menu=filemenu)
         root.config(menu=menubar)
@@ -38,6 +58,17 @@ class PEViewerApp:
         self.tree.bind("<<TreeviewSelect>>", self.on_tree_select)
 
         self.data = None
+        self.column_config = {
+            "DOS Header":       ("Property", "Value"),  
+            "COFF File Header": ("Address", "Value", "Field"),
+            "Optional Header":  ("Address", "Value", "Field"),
+            "Sections Table":   ("Virtual Address", "Size", "Section Name"),
+            "Import Table":     ("Function", "DLL", "Type", "Ordinal"),
+            "Export Table":     ("Address", "N/A", "Function Name"),
+            "Resource Table":   ("Offset", "N/A", "Resource Type"),
+            "Relocation Table": ("RVA", "N/A", "Relocation Type"),
+          
+        }
 
     def open_file(self):
         file_path = filedialog.askopenfilename(
@@ -51,7 +82,7 @@ class PEViewerApp:
             self.data = parse_pe(file_path)
             self.populate_tree()
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to parse file:\n{e}")
+            messagebox.showerror("Error", f"Không thể phân tích file:\n{e}")
 
     def populate_tree(self):
         self.tree.delete(*self.tree.get_children())
@@ -60,17 +91,40 @@ class PEViewerApp:
 
     def on_tree_select(self, event):
         selected = self.tree.focus()
-        if not selected:
+        if not selected or selected not in self.data:
             return
+
+        # Xóa dữ liệu cũ
         self.list.delete(*self.list.get_children())
-        if selected in self.data:
-            for addr, val, name in self.data[selected]:
-                self.list.insert('', 'end', values=(addr, val, name))
-        else:
-            messagebox.showinfo("No Data", f"No detailed data available for {selected}.")
+
+        # Cập nhật lại cột tùy theo bảng
+        columns = self.column_config.get(selected, ("Col1", "Col2", "Col3"))
+        full_columns = ("Index",) + columns
+        self.list["columns"] = full_columns
+
+        self.list.heading("Index", text="#")
+        self.list.column("Index", width=50, anchor="center")
+
+        for col in columns:
+            self.list.heading(col, text=col)
+            self.list.column(col, anchor="w", width=150)
+
+        # Thêm dữ liệu vào bảng
+        try:
+            # Cập nhật hiển thị cho "DOS Header"
+            if selected == "DOS Header":
+                for idx, row in enumerate(self.data[selected], start=1):
+                    self.list.insert('', 'end', values=(idx, *row))
+            else:
+                for idx, row in enumerate(self.data[selected], start=1):
+                    self.list.insert('', 'end', values=(idx, *row))
+        except Exception as e:
+            messagebox.showerror("Error", f"Lỗi hiển thị dữ liệu:\n{e}")
+            
+        
 
 if __name__ == "__main__":
     root = tk.Tk()
     app = PEViewerApp(root)
-    root.geometry("900x600")
+    root.geometry("1000x600")
     root.mainloop()
