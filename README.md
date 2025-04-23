@@ -27,6 +27,13 @@
   - Magic number **MZ** (`0x4D5A`) – nhận diện file DOS.
   - **e_lfanew** (offset `0x3C`): offset trỏ tới PE Header.
 
+```cpp
+typedef struct _IMAGE_DOS_HEADER { 
+    WORD e_magic;      // MZ = 0x5A4D
+    WORD e_cblp;       // Bytes on last page
+    ...
+    LONG e_lfanew;     // Offset to PE header
+} IMAGE_DOS_HEADER;
 
 2. PE Signature
 
