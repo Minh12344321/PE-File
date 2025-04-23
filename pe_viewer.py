@@ -7,32 +7,28 @@ class PEViewerApp:
         self.root = root
         self.root.title("PE Viewer")
 
-        # ===== Frame tổng =====
         frame = ttk.Frame(root, padding=10)
         frame.pack(fill=tk.BOTH, expand=True)
 
-        # ===== Frame chứa TreeView bên trái =====
+        # ===== Left Frame =====
         left_frame = ttk.Frame(frame)
         left_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 5))
 
-        # ===== TreeView (Structure) =====
         self.tree = ttk.Treeview(left_frame)
         self.tree.heading("#0", text="Structure", anchor="w")
         self.tree.pack(fill=tk.Y, expand=True)
 
-        # Thanh cuộn cho TreeView
         tree_scrollbar = ttk.Scrollbar(left_frame, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=tree_scrollbar.set)
         tree_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        # ===== Frame chứa ListView bên phải =====
+        # ===== Right Frame =====
         right_frame = ttk.Frame(frame)
         right_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        # ===== ListView (Details) =====
         self.list = ttk.Treeview(
-            right_frame, 
-            columns=("Index", "Address", "Value", "Meaning"), 
+            right_frame,
+            columns=("Index", "Address", "Value", "Meaning"),
             show="headings",
             selectmode="browse"
         )
@@ -40,7 +36,6 @@ class PEViewerApp:
         self.list.column("Index", width=50, anchor="center")
         self.list.pack(fill=tk.BOTH, expand=True)
 
-        # Thanh cuộn cho ListView
         list_scrollbar = ttk.Scrollbar(right_frame, orient="vertical", command=self.list.yview)
         self.list.configure(yscrollcommand=list_scrollbar.set)
         list_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
@@ -54,20 +49,17 @@ class PEViewerApp:
         menubar.add_cascade(label="File", menu=filemenu)
         root.config(menu=menubar)
 
-        # Gán sự kiện click vào Tree
+        # Event Binding
         self.tree.bind("<<TreeviewSelect>>", self.on_tree_select)
 
         self.data = None
         self.column_config = {
-            "DOS Header":       ("Property", "Value"),  
-            "COFF File Header": ("Address", "Value", "Field"),
-            "Optional Header":  ("Address", "Value", "Field"),
-            "Sections Table":   ("Virtual Address", "Size", "Section Name"),
-            "Import Table":     ("Function", "DLL", "Type", "Ordinal"),
-            "Export Table":     ("Address", "N/A", "Function Name"),
+            "DOS Header":       ("Property", "Value"),
+            "Sections Table":   ("Name","Entropy","Raw-address (begin - end)","Raw size","Virtual address"),
+            "Import Table":     ("Imports", "Library", "Type", "Ordinal"),
+            "Export Table":     ("Funtion", "N/A", "Name"),
             "Resource Table":   ("Offset", "N/A", "Resource Type"),
             "Relocation Table": ("RVA", "N/A", "Relocation Type"),
-          
         }
 
     def open_file(self):
@@ -94,10 +86,8 @@ class PEViewerApp:
         if not selected or selected not in self.data:
             return
 
-        # Xóa dữ liệu cũ
         self.list.delete(*self.list.get_children())
 
-        # Cập nhật lại cột tùy theo bảng
         columns = self.column_config.get(selected, ("Col1", "Col2", "Col3"))
         full_columns = ("Index",) + columns
         self.list["columns"] = full_columns
@@ -109,22 +99,14 @@ class PEViewerApp:
             self.list.heading(col, text=col)
             self.list.column(col, anchor="w", width=150)
 
-        # Thêm dữ liệu vào bảng
         try:
-            # Cập nhật hiển thị cho "DOS Header"
-            if selected == "DOS Header":
-                for idx, row in enumerate(self.data[selected], start=1):
-                    self.list.insert('', 'end', values=(idx, *row))
-            else:
-                for idx, row in enumerate(self.data[selected], start=1):
-                    self.list.insert('', 'end', values=(idx, *row))
+            for idx, row in enumerate(self.data[selected], start=1):
+                self.list.insert('', 'end', values=(idx, *row))
         except Exception as e:
             messagebox.showerror("Error", f"Lỗi hiển thị dữ liệu:\n{e}")
-            
-        
 
 if __name__ == "__main__":
     root = tk.Tk()
     app = PEViewerApp(root)
-    root.geometry("1000x600")
+    root.geometry("1100x600")
     root.mainloop()
