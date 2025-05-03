@@ -56,9 +56,10 @@ class PEViewerApp:
         self.column_config = {
             "DOS Header":       ("Property", "Value"),
             "Sections Table":   ("Name","Entropy","Raw-address (begin - end)","Raw size","Virtual address"),
-            "Import Table":     ("Imports", "Library", "Type", "Ordinal"),
-            "Export Table":     ("Funtion", "N/A", "Name"),
-            "Resource Table":   ("Offset", "N/A", "Resource Type"),
+           "Import Table": ("Imports", "Library", "Type", "Ordinal", "Flag"),
+
+            "Export Table":     ("Funtion", "Name"),
+            "Resource Table":   ("Name", "Footprint(sha256)", "Entropy"),
             "Relocation Table": ("RVA", "N/A", "Relocation Type"),
         }
 
