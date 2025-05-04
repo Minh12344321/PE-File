@@ -85,7 +85,8 @@ def parse_pe(file_path):
         'Import Table': [],
         'Export Table': [],
         'Resource Table': [],
-        'Relocation Table': []
+        'Relocation Table': [],
+         'Library': [] 
     }
 
     try:
@@ -160,6 +161,15 @@ def parse_pe(file_path):
         else:
             data['Resource Table'].append(('N/A', '', '', 'No resources found.'))
 
+        # LIBRARY
+        libraries_set = set()
+        if hasattr(pe, 'DIRECTORY_ENTRY_IMPORT'):
+            for entry in pe.DIRECTORY_ENTRY_IMPORT:
+                dll_name = entry.dll.decode('utf-8', errors='ignore')
+                imp_count = len(entry.imports)
+                libraries_set.add((dll_name, imp_count))
+        data['Library'] = sorted(libraries_set)
+
         # RELOCATION TABLE
         if hasattr(pe, 'DIRECTORY_ENTRY_BASERELOC'):
             for base_reloc in pe.DIRECTORY_ENTRY_BASERELOC:
@@ -178,3 +188,4 @@ def parse_pe(file_path):
         print(f"Error parsing PE file: {e}")
 
     return data
+       

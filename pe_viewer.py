@@ -61,6 +61,8 @@ class PEViewerApp:
             "Export Table":     ("Funtion", "Name"),
             "Resource Table":   ("Name", "Footprint(sha256)", "Entropy"),
             "Relocation Table": ("RVA", "N/A", "Relocation Type"),
+            "Library": ("DLL Name", "API Count"),
+
         }
 
     def open_file(self):
