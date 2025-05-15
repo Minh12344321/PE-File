@@ -1,6 +1,7 @@
 import hashlib
 import math
 import pefile
+import datetime
 
 # Tính toán entropy của dữ liệu
 def calculate_entropy(data):
@@ -15,6 +16,72 @@ def calculate_entropy(data):
             p_x = count / len(data)
             entropy -= p_x * math.log2(p_x)
     return round(entropy, 3)
+
+
+def parse_pe_header(pe):
+    pe_header_info = {
+        "Signature": [],
+        "File Header": [],
+        "Optional Header": []
+    }
+
+    # 1. Signature
+    signature = pe.NT_HEADERS.Signature
+    pe_header_info["Signature"].append(("NT_HEADERS.Signature", f"0x{signature:08X}"))
+
+  
+    # 2. IMAGE_FILE_HEADER
+    file_header = pe.FILE_HEADER
+    
+    timestamp = file_header.TimeDateStamp
+    dt_str = datetime.datetime.utcfromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S UTC')
+  
+    char_flags = []
+    flags = file_header.Characteristics
+    if flags & 0x0001: char_flags.append("Relocs Stripped")
+    if flags & 0x0002: char_flags.append("Executable Image")
+    if flags & 0x0004: char_flags.append("Line Numbers Stripped")
+    if flags & 0x0008: char_flags.append("Local Symbols Stripped")
+    if flags & 0x0010: char_flags.append("Aggressive WS Trim")
+    if flags & 0x0020: char_flags.append("Large Address Aware")
+    if flags & 0x0080: char_flags.append("Bytes Reversed Lo")
+    if flags & 0x0100: char_flags.append("32 Bit Machine")
+    if flags & 0x0200: char_flags.append("Debug Stripped")
+    if flags & 0x0400: char_flags.append("Removable Run From Swap")
+    if flags & 0x0800: char_flags.append("Net Run From Swap")
+    if flags & 0x1000: char_flags.append("System")
+    if flags & 0x2000: char_flags.append("DLL")
+    if flags & 0x4000: char_flags.append("Up System Only")
+    if flags & 0x8000: char_flags.append("Bytes Reversed Hi")
+    characteristics_str = ", ".join(char_flags) if char_flags else "None"
+
+    pe_header_info["File Header"].extend([
+        ("Machine", f"0x{file_header.Machine:04X}"),
+        ("NumberOfSections", file_header.NumberOfSections),
+        ("TimeDateStamp", f"0x{timestamp:08X} ({dt_str})"),
+        ("PointerToSymbolTable", f"0x{file_header.PointerToSymbolTable:08X}"),
+        ("NumberOfSymbols", file_header.NumberOfSymbols),
+        ("SizeOfOptionalHeader", file_header.SizeOfOptionalHeader),
+        ("Characteristics", characteristics_str)
+    ])
+
+    # 3. IMAGE_OPTIONAL_HEADER
+    opt = pe.OPTIONAL_HEADER
+    pe_header_info["Optional Header"].extend([
+        ("Magic", f"0x{opt.Magic:04X}"),  # PE32 (0x10B) or PE32+ (0x20B for 64-bit)
+        ("AddressOfEntryPoint", f"0x{opt.AddressOfEntryPoint:08X}"),  # Entry point for execution (start of code)
+        ("ImageBase", f"0x{opt.ImageBase:08X}"),  # Preferred base address in memory
+        ("SectionAlignment", f"0x{opt.SectionAlignment:X}"),  # Alignment of sections in memory
+        ("FileAlignment", f"0x{opt.FileAlignment:X}"),  # Alignment of sections in file
+        ("SizeOfImage", f"0x{opt.SizeOfImage:X}"),  # Total size in memory after loading
+        ("SizeOfHeaders", f"0x{opt.SizeOfHeaders:X}"),  # Size of all headers (DOS, PE, section table, etc.)
+        ("Subsystem", f"0x{opt.Subsystem:04X}"),  # Target subsystem: GUI (2), CLI (3), etc.
+        ("DllCharacteristics", f"0x{opt.DllCharacteristics:04X}"),  # Security flags: ASLR, DEP, etc.
+        ("NumberOfRvaAndSizes", opt.NumberOfRvaAndSizes)  # Number of data directories (like Import Table, Export Table...)
+])
+    
+
+    return pe_header_info
 
 # Phân tích DOS Header
 def parse_dos_header(pe):
@@ -158,46 +225,6 @@ def parse_libraries(pe):
     return sorted(libraries_set)
 
 
-def parse_pe_header(pe):
-    pe_header_info = {
-        "Signature": [],
-        "File Header": [],
-        "Optional Header": []
-    }
-
-    # 1. Signature
-    signature = pe.NT_HEADERS.Signature
-    pe_header_info["Signature"].append(("NT_HEADERS.Signature", f"0x{signature:08X}"))
-
-    # 2. IMAGE_FILE_HEADER
-    file_header = pe.FILE_HEADER
-    pe_header_info["File Header"].extend([
-        ("Machine", f"0x{file_header.Machine:04X}"),
-        ("NumberOfSections", file_header.NumberOfSections),
-        ("TimeDateStamp", f"0x{file_header.TimeDateStamp:08X}"),
-        ("PointerToSymbolTable", f"0x{file_header.PointerToSymbolTable:08X}"),
-        ("NumberOfSymbols", file_header.NumberOfSymbols),
-        ("SizeOfOptionalHeader", file_header.SizeOfOptionalHeader),
-        ("Characteristics", f"0x{file_header.Characteristics:04X}")
-    ])
-
-    # 3. IMAGE_OPTIONAL_HEADER
-    opt = pe.OPTIONAL_HEADER
-    pe_header_info["Optional Header"].extend([
-        ("Magic", f"0x{opt.Magic:04X}"),
-        ("AddressOfEntryPoint", f"0x{opt.AddressOfEntryPoint:08X}"),
-        ("ImageBase", f"0x{opt.ImageBase:08X}"),
-        ("SectionAlignment", f"0x{opt.SectionAlignment:X}"),
-        ("FileAlignment", f"0x{opt.FileAlignment:X}"),
-        ("SizeOfImage", f"0x{opt.SizeOfImage:X}"),
-        ("SizeOfHeaders", f"0x{opt.SizeOfHeaders:X}"),
-        ("Subsystem", f"0x{opt.Subsystem:04X}"),
-        ("DllCharacteristics", f"0x{opt.DllCharacteristics:04X}"),
-        ("NumberOfRvaAndSizes", opt.NumberOfRvaAndSizes)
-    ])
-
-    return pe_header_info
-
 # Hàm parse chính
 def parse_pe(file_path):
     data = {
@@ -213,12 +240,13 @@ def parse_pe(file_path):
     try:
         pe = pefile.PE(file_path)
 
-        # DOS HEADER
-        data['DOS Header'] = parse_dos_header(pe)
-        
         pe_header_sections = parse_pe_header(pe)
         data["PE Header"] = pe_header_sections
 
+        # DOS HEADER
+        data['DOS Header'] = parse_dos_header(pe)
+        
+   
 
         # SECTIONS TABLE
         data['Sections Table'] = parse_sections(pe)
