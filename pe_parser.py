@@ -157,23 +157,46 @@ def parse_libraries(pe):
             libraries_set.add((dll_name, imp_count))
     return sorted(libraries_set)
 
-# Relocation Table
-def parse_relocation_table(pe):
-    relocations = []
-    if hasattr(pe, 'DIRECTORY_ENTRY_BASERELOC'):
-        for base_reloc in pe.DIRECTORY_ENTRY_BASERELOC:
-            for reloc in base_reloc.entries:
-                rva = hex(reloc.rva)
-                reloc_type = reloc.type
-                relocations.append((
-                    rva,
-                    '',
-                    f"Type: {reloc_type}"
-                ))
-    else:
-        relocations.append(('N/A', '', 'No relocation entries.'))
-    return relocations
 
+def parse_pe_header(pe):
+    pe_header_info = {
+        "Signature": [],
+        "File Header": [],
+        "Optional Header": []
+    }
+
+    # 1. Signature
+    signature = pe.NT_HEADERS.Signature
+    pe_header_info["Signature"].append(("NT_HEADERS.Signature", f"0x{signature:08X}"))
+
+    # 2. IMAGE_FILE_HEADER
+    file_header = pe.FILE_HEADER
+    pe_header_info["File Header"].extend([
+        ("Machine", f"0x{file_header.Machine:04X}"),
+        ("NumberOfSections", file_header.NumberOfSections),
+        ("TimeDateStamp", f"0x{file_header.TimeDateStamp:08X}"),
+        ("PointerToSymbolTable", f"0x{file_header.PointerToSymbolTable:08X}"),
+        ("NumberOfSymbols", file_header.NumberOfSymbols),
+        ("SizeOfOptionalHeader", file_header.SizeOfOptionalHeader),
+        ("Characteristics", f"0x{file_header.Characteristics:04X}")
+    ])
+
+    # 3. IMAGE_OPTIONAL_HEADER
+    opt = pe.OPTIONAL_HEADER
+    pe_header_info["Optional Header"].extend([
+        ("Magic", f"0x{opt.Magic:04X}"),
+        ("AddressOfEntryPoint", f"0x{opt.AddressOfEntryPoint:08X}"),
+        ("ImageBase", f"0x{opt.ImageBase:08X}"),
+        ("SectionAlignment", f"0x{opt.SectionAlignment:X}"),
+        ("FileAlignment", f"0x{opt.FileAlignment:X}"),
+        ("SizeOfImage", f"0x{opt.SizeOfImage:X}"),
+        ("SizeOfHeaders", f"0x{opt.SizeOfHeaders:X}"),
+        ("Subsystem", f"0x{opt.Subsystem:04X}"),
+        ("DllCharacteristics", f"0x{opt.DllCharacteristics:04X}"),
+        ("NumberOfRvaAndSizes", opt.NumberOfRvaAndSizes)
+    ])
+
+    return pe_header_info
 
 # Hàm parse chính
 def parse_pe(file_path):
@@ -183,7 +206,7 @@ def parse_pe(file_path):
         'Import Table': [],
         'Export Table': [],
         'Resource Table': [],
-        'Relocation Table': [],
+
          'Library': [] 
     }
 
@@ -192,6 +215,10 @@ def parse_pe(file_path):
 
         # DOS HEADER
         data['DOS Header'] = parse_dos_header(pe)
+        
+        pe_header_sections = parse_pe_header(pe)
+        data["PE Header"] = pe_header_sections
+
 
         # SECTIONS TABLE
         data['Sections Table'] = parse_sections(pe)
@@ -208,9 +235,8 @@ def parse_pe(file_path):
 
         # LIBRARY
         data['Library'] = parse_libraries(pe)
-
-        # RELOCATION TABLE
-        data['Relocation Table'] = parse_relocation_table(pe)
+        
+        
 
     except Exception as e:
         print(f"Error parsing PE file: {e}")

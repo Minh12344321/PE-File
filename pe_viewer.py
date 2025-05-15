@@ -55,11 +55,15 @@ class PEViewerApp:
         self.data = None
         self.column_config = {
             "DOS Header":       ("Property", "Value"),
+                    
+            "PE Header|Signature": ("Field", "Value"),
+            "PE Header|File Header": ("Field", "Value"),
+            "PE Header|Optional Header": ("Field", "Value"),
             "Sections Table":   ("Name", "Entropy", "Raw-address (begin - end)", "Raw size", "Virtual address", "Virtual size", "Characteristics"),
             "Import Table": ("Imports", "Library", "Type", "Ordinal", "Flag"),
             "Export Table":     ("Function", "Name"),
             "Resource Table":   ("Name", "Footprint(sha256)", "Entropy"),
-            "Relocation Table": ("RVA", "N/A", "Relocation Type"),
+         
             "Library": ("DLL Name", "API Count"),
 }
 
@@ -80,20 +84,36 @@ class PEViewerApp:
 
     def populate_tree(self):
         self.tree.delete(*self.tree.get_children())
-        for key in self.data.keys():
-            self.tree.insert('', 'end', iid=key, text=key)
+        for key, value in self.data.items():
+            parent_id = self.tree.insert('', 'end', iid=key, text=key)
+            if isinstance(value, dict):
+                for subkey in value.keys():
+                    self.tree.insert(parent_id, 'end', iid=f"{key}|{subkey}", text=subkey)
+
 
     def on_tree_select(self, event):
         selected = self.tree.focus()
-        if not selected or selected not in self.data:
+        if not selected:
             return
 
         self.list.delete(*self.list.get_children())
 
-        columns = self.column_config.get(selected, ("Col1", "Col2", "Col3"))
+        # Xử lý PE Header|Optional Header
+        if '|' in selected:
+            main_key, sub_key = selected.split('|', 1)
+            if main_key in self.data and sub_key in self.data[main_key]:
+                rows = self.data[main_key][sub_key]
+                columns = ("Field", "Value")
+            else:
+                return
+        elif selected in self.data and isinstance(self.data[selected], list):
+            rows = self.data[selected]
+            columns = self.column_config.get(selected, ("Col1", "Col2", "Col3"))
+        else:
+            return
+
         full_columns = ("Index",) + columns
         self.list["columns"] = full_columns
-
         self.list.heading("Index", text="#")
         self.list.column("Index", width=50, anchor="center")
 
@@ -101,11 +121,8 @@ class PEViewerApp:
             self.list.heading(col, text=col)
             self.list.column(col, anchor="w", width=150)
 
-        try:
-            for idx, row in enumerate(self.data[selected], start=1):
-                self.list.insert('', 'end', values=(idx, *row))
-        except Exception as e:
-            messagebox.showerror("Error", f"Lỗi hiển thị dữ liệu:\n{e}")
+        for idx, row in enumerate(rows, start=1):
+            self.list.insert('', 'end', values=(idx, *row))
 
 if __name__ == "__main__":
     root = tk.Tk()
