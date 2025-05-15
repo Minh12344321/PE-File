@@ -55,15 +55,14 @@ class PEViewerApp:
         self.data = None
         self.column_config = {
             "DOS Header":       ("Property", "Value"),
-            "Sections Table":   ("Name","Entropy","Raw-address (begin - end)","Raw size","Virtual address"),
-           "Import Table": ("Imports", "Library", "Type", "Ordinal", "Flag"),
-
-            "Export Table":     ("Funtion", "Name"),
+            "Sections Table":   ("Name", "Entropy", "Raw-address (begin - end)", "Raw size", "Virtual address", "Virtual size", "Characteristics"),
+            "Import Table": ("Imports", "Library", "Type", "Ordinal", "Flag"),
+            "Export Table":     ("Function", "Name"),
             "Resource Table":   ("Name", "Footprint(sha256)", "Entropy"),
             "Relocation Table": ("RVA", "N/A", "Relocation Type"),
             "Library": ("DLL Name", "API Count"),
+}
 
-        }
 
     def open_file(self):
         file_path = filedialog.askopenfilename(

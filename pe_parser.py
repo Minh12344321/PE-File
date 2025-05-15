@@ -49,12 +49,11 @@ def parse_sections(pe):
         virtual_size = f"0x{section.Misc_VirtualSize:X} ({section.Misc_VirtualSize} bytes)"
 
         flags = []
-        if section.Characteristics & 0x20000000: flags.append("Execute")
-        if section.Characteristics & 0x40000000: flags.append("Read")
         if section.Characteristics & 0x80000000: flags.append("Write")
-        if section.Characteristics & 0x00000020: flags.append("Code")
-        if section.Characteristics & 0x00000040: flags.append("Uninitialized Data")
-        if section.Characteristics & 0x00000080: flags.append("Initialized Data")
+        if section.Characteristics & 0x20000000: flags.append("Execute")
+        if section.Characteristics & 0x10000000: flags.append("Share")
+        if section.Characteristics & 0x01000000: flags.append("Self-modifying")
+        if section.Characteristics & 0x02000000: flags.append("Virtual")
 
         characteristics = ", ".join(flags)
 
